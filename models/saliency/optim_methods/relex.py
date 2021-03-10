@@ -2,53 +2,55 @@ import torch
 from torch import nn
 from torch.autograd import grad
 
-r'''
-dd
-'''
-
 
 class RelEx(nn.Module):
-    def __init__(self, net, opts):
+    def __init__(self, net, shape=(1, 3, 224, 224), batch_size=50, lr=0.1,
+                 mtm=0.99, x_std_level=0.1, max_iters=50, lambda1=1e-4,
+                 lambda2=1., mode='batch', device=None):
+        super().__init__()
+
         # common variables
-        self.x_ch = opts.x_ch
-        self.x_size = opts.x_size
+        self.x_ch = shape[1]
+        self.x_size = shape[-1]
 
         # hyper-parameters for RelEx
-        self.batch_size = opts.relex.batch_size  # 50
-        self.lr = opts.relex.lr  # 0.1
-        self.mtm = opts.relex.mtm  # 0.99
+        self.batch_size = batch_size  # 50
+        self.lr = lr  # 0.1
+        self.mtm = mtm  # 0.99
+        self.x_std_level = x_std_level  # 0.1
+        self.max_iters = max_iters  # 50 ~ 100
+        self.lambda1 = lambda1  # 1e-4
+        self.lambda2 = lambda2  # 1.
 
         # RelEx variables
-        self.mode = opts.relex.mode  # 'batch' or 'vanilla'
-        self.max_iters = opts.relex.max_iters  # 50 ~ 100
+        self.mode = mode  # 'batch' or 'vanilla'
 
+        self.device = device
         self.jacobian_vector_ones = torch.ones(
-            self.batch_size, dtype=torch.float32, device='cuda')
+            self.batch_size, dtype=torch.float32, device=self.device)
         self.jacobian_vector_weights = torch.ones(
-            self.batch_size, dtype=torch.float32, device='cuda') / self.batch_size
+            self.batch_size, dtype=torch.float32, device=self.device) / self.batch_size
 
         self.net = net
-        self.criterion = Loss(opts.relex.lambda1, opts.relex.lambda2)
+        self.criterion = Loss(self.lambda1, self.lambda2)
 
-    def forward(self, x, target_cls, sec_ord=False):
-        m = self._reset(x, sec_ord)
+    def forward(self, x, target_cls=None, sec_ord=False):
+        m = self._reset(x, target_cls, sec_ord)
 
-        m_sets = []
-        for i in range(self.max_iters):
+        for _ in range(self.max_iters):
             self._generate_grad(x, m)
             self._step(m)
-            if i == 0 or (i+1) == self.max_iters or (i+1) % self.save_freq == 0:
-                m_sets.append(m.detach().clone())
 
-        return m_sets
+        return m
 
-    def _reset(self, x, sec_ord):
+    def _reset(self, x, target_cls=None, sec_ord=False):
+        self.target_cls = target_cls
         self.sec_ord = sec_ord  # whether calculate second order derivative
 
         self.x_std = (x.max() - x.min()) * self.x_std_level  # image std
 
         # initialize mask
-        m = torch.rand(1, self.x_ch, self.x_size, self.x_size) / 100
+        m = torch.rand(x.size(), device=self.device) / 100
         m.requires_grad_(True)
         self.optimizer = torch.optim.SGD([m], lr=self.lr, momentum=self.mtm)
         return m
@@ -59,30 +61,32 @@ class RelEx(nn.Module):
         foregnd_inputs = batch_x * m
         backgnd_inputs = batch_x * (1 - m)
 
-        foregnd_outputs = self.net(foregnd_inputs)
-        backgnd_outputs = self.net(backgnd_inputs)
+        foregnd_outputs = self.net(foregnd_inputs)[:, self.target_cls]
+        backgnd_outputs = self.net(backgnd_inputs)[:, self.target_cls]
 
         # normalizing gradient
         losses = self.criterion((foregnd_outputs, backgnd_outputs), m)
-        # m_grad = grad(losses.mean(), m, create_graph=self.sec_ord)[0]
         losses.backward(self.jacobian_vector_weights)
+
         alpha = 1 / torch.sqrt((m.grad.data**2).sum())
         m.grad.data.mul_(alpha)
 
     def _generate_noised_x(self, x):
         noise = torch.empty(self.batch_size, self.x_ch,
-                            self.x_size).normal_(0, self.x_std)
-        if torch.cuda.is_available():
-            noise = noise.to(0)
+                            self.x_size, self.x_size).normal_(0, self.x_std)
+        noise = noise.to(self.device)
         return x + noise
 
     def _step(self, m):
         self.optimizer.step()
         self.optimizer.zero_grad()
+        m.data.clamp_(0, 1)
 
 
 class Loss(nn.Module):
     def __init__(self, lambda1, lambda2):
+        super().__init__()
+
         self.lambda1 = lambda1
         self.lambda2 = lambda2
         self.eps = 1e-7  # to defense log(0)
