@@ -1,0 +1,1 @@
+from .sal import SaliencyModel
