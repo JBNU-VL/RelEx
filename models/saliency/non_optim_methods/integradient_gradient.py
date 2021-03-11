@@ -9,7 +9,8 @@ class IntegratedGradient(nn.Module):
 
         self.net = net
 
-        self.steps = opts.integradient_gradient.steps if opts != None else steps
+        # variables
+        self.steps = steps if steps != None else 50
         self.pathes = torch.linspace(
             0, 1, self.steps, dtype=torch.float32, device='cuda')
 
