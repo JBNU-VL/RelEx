@@ -4,15 +4,16 @@ from torch.autograd import grad
 
 
 class IntegratedGradient(nn.Module):
-    def __init__(self, net, steps=50, opts=None):
+    def __init__(self, net, steps=50, device=None):
         super().__init__()
 
         self.net = net
 
         # variables
         self.steps = steps if steps != None else 50
+        self.device = device
         self.pathes = torch.linspace(
-            0, 1, self.steps, dtype=torch.float32, device='cuda')
+            0, 1, self.steps, dtype=torch.float32, device=self.device)
 
     def forward(self, x, target_cls, sec_ord=False):
         x.requires_grad_(True)
