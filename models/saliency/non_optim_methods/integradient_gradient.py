@@ -25,7 +25,7 @@ class IntegratedGradient(nn.Module):
 
 if __name__ == '__main__':
     import torchvision
-    net = torchvision.models.resnet50(True).to(0)
+    net = torchvision.models.resnet50(True).eval().to(0)
     IG_attr = IntegratedGradient(net)
     x = torch.rand(1, 3, 224, 224).to(0)
     ig = IG_attr(x, 0)

@@ -25,8 +25,14 @@ def preprocess_image(img, size=224, center_crop=True):
     return x, x0
 
 
-def depreprocess_image():
-    pass
+def depreprocess_image(img, size=224):
+    mean = (0.485, 0.456, 0.406)
+    std = (0.229, 0.224, 0.225)
+
+    for i in range(img.size(1)):
+        img[..., i, :, :] = img[..., i, :, :] * std[i]
+        img[..., i, :, :] = img[..., i, :, :] + mean[i]
+    return img
 
 
 def normalize(sal, plane=True, percentile=True):

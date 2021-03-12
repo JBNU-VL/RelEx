@@ -1,2 +1,1 @@
-from .fgsm import FastGradientSignMethod
-from .pgd import ProjectedGradientDescent
+from .pgd import pgd_fn

@@ -1,2 +1,2 @@
-from .targeted import ManipulationMethod, IterativeAttack
-from .untargeted import FastGradientSignMethod, ProjectedGradientDescent
+# from .targeted import ManipulationMethod
+from .untargeted import pgd_fn
