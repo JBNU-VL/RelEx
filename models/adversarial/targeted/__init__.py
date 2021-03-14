@@ -1,2 +1,2 @@
 from .structured import ManipulationMethod
-from .unstructured import IterativeAttack
+# from .unstructured import IterativeAttack
