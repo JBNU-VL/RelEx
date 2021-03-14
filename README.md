@@ -20,11 +20,11 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
 <span style="color:red">details will be here.</span>
 ## Adversarial defense example
 ### Untargeted Attack
-    <span style="color:red">Figure will be here.</span>
+<span style="color:red">Figure will be here.</span>
 ### Structured Attack
-    <span style="color:red">Figure will be here.</span>
+<span style="color:red">Figure will be here.</span>
 ### Unstructured Attack
-    <span style="color:red">Figure will be here.</span>
+<span style="color:red">Figure will be here.</span>
 
 
 ## Reference of Methods
