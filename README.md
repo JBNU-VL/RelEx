@@ -24,3 +24,7 @@ RelEx Paper: arXiv link will be here.
 ### Unstructured Attack
 
 ## Reference of Algorithms
+* PGD: [Towards Deep Learning Models Resistant to Adversarial Attacks][pgdlink]
+[pgdlink]: "https://arxiv.org/abs/1706.06083"
+*
+*
