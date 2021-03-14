@@ -13,7 +13,7 @@ RelEx Paper: arXiv link will be here.
 > |method|Ours, RelEx|Real Time Saliency|GradCAM|DeepLIFT|SmoothGrad|Integrated Gradient|Simple Gradient|
 > |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 > |state|:white_check_mark:|:white_check_mark:|:construction:|:construction:|:white_check_mark:|:white_check_mark:|:construction:|
-:white_check_mark:: done, :construction:: refactoring
+#### :white_check_mark:: done, :construction:: refactoring
 
 
 ## Adversarial defense
