@@ -8,12 +8,12 @@ RelEx Paper: arXiv link will be here.
 * Adversarial method
 > |method|Untargeted, PGD|Targeted, Structured|Targeted, Unstructured|
 > |:---:|:---:|:---:|:---:|
-> |state|done|done|going|
+> |state|:white_check_mark:|:white_check_mark:|:construction:|
 * Saliency method
 > |method|Ours, RelEx|Real Time Saliency|GradCAM|DeepLIFT|SmoothGrad|Integrated Gradient|Simple Gradient|
 > |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-> |state|done|done|refactoring|refactoring|done|done|:construction:|
-
+> |state|:white_check_mark:|:white_check_mark:|:construction:|:construction:|:white_check_mark:|:white_check_mark:|:construction:|
+>> :white_check_mark:: done, :construction:: refactoring
 ## Adversarial defense
 ### Untargeted Attack
 
