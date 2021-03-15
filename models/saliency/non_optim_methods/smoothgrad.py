@@ -12,30 +12,35 @@ class SmoothGrad(nn.Module):
         self.net = net
 
         self.x_shape = shape
-        self.samples = sample_size
 
+        # variables
+        self.samples = sample_size
         self.std_level = std_level
 
         self.device = device
 
     def forward(self, x, target_cls=None, sec_ord=False):
-        self._reset(x)
-        x.requires_grad_(True)
-        batch_x = self._generate_noised_x(x)
-        outputs = self.net(batch_x)
-
         if target_cls == None:
-            with torch.no_grad():
-                target_cls = self.net(x).max(1)[1].item()
+            target_cls = self.net(x).max(1)[1].item()
 
-        sal = grad(outputs[:, target_cls].mean(), x, create_graph=sec_ord)[0]
-        accu = F.softmax(outputs, 1)
+        self._reset(x, sec_ord)
+
+        batch_x = self._generate_noised_x(x)
+        accus = self._predict(batch_x)
+
+        sal = grad(accus[:, target_cls].mean(), x, create_graph=sec_ord)[0]
+        accu = self._predict(x.detach())
         return sal, accu
 
-    def _reset(self, x):
+    def _reset(self, x, sec_ord):
         self.x_std = (x.max() - x.min()) * self.std_level
+        if not sec_ord:
+            x.requires_grad_(True)
+
+    def _predict(self, x):
+        return F.softmax(self.net(x), 1)
 
     def _generate_noised_x(self, x):
         noise = torch.empty(
-            self.samples, self.x_shape[1], self.x_shape[2], self.x_shape[3]).normal_(0, self.x_std)
+            self.samples, self.x_shape[1], self.x_shape[2], self.x_shape[3]).normal_(0, self.x_std.item())
         return x + noise.to(self.device)

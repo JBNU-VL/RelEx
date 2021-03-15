@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.autograd import grad
+from .util import replace_activation2softplus, replace_activation2relu, image_clamp
 
 r'''
 '''
@@ -42,6 +42,7 @@ class ManipulationMethod(nn.Module):
             loss.backward(retain_graph=True)
             self._step(adv_x.data)
 
+        replace_activation2relu(sal_method)
         adv_sal = sal_method(adv_x.detach())[0]
         return adv_x, adv_sal, orig_sal, target_sal
 
@@ -73,22 +74,3 @@ class Loss(nn.Module):
         h_loss_term = self.factors[0] * F.mse_loss(adv_sal, target_sal)
         g_loss_term = self.factors[1] * F.mse_loss(adv_acc, orig_acc)
         return h_loss_term + g_loss_term
-
-
-def replace_activation2softplus(net, beta=10.):
-    if net.__class__.__name__ != 'RealTimeSaliency':
-        for child_name, child in net.named_children():
-            if isinstance(child, nn.ReLU) or isinstance(child, nn.Softplus):
-                setattr(net, child_name, nn.Softplus(beta=beta))
-            else:
-                replace_activation2softplus(child, beta)
-
-
-def image_clamp(adv_x, bounds):
-    assert bounds[0].size() == (
-        1, 3, 224, 224), "max bound shape is not correct."
-    assert bounds[1].size() == (
-        1, 3, 224, 224), "min bound shape is not correct."
-    max_bound, min_bound = bounds
-    adv_x = torch.where(adv_x > max_bound, adv_x, max_bound)
-    adv_x = torch.where(adv_x < min_bound, adv_x, min_bound)

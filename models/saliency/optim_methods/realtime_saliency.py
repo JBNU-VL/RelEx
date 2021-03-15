@@ -30,5 +30,8 @@ class RealTimeSaliency(nn.Module):
                            model_confidence=self.model_confidence)[0]
         sal = F.interpolate(masks, x.size(
             2), mode='bilinear', align_corners=False)
-        accu = F.softmax(self.net(x)[-1], 1)
+        accu = self._predict(x)
         return sal, accu
+
+    def _predict(self, x):
+        return F.softmax(self.net(x)[-1], 1)

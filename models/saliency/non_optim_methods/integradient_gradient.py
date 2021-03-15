@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.autograd import grad
 
 
@@ -11,22 +12,28 @@ class IntegratedGradient(nn.Module):
 
         # variables
         self.steps = steps if steps != None else 50
-        self.device = device
         self.pathes = torch.linspace(
-            0, 1, self.steps, dtype=torch.float32, device=self.device)
+            0, 1, self.steps, dtype=torch.float32, device=device)
 
-    def forward(self, x, target_cls, sec_ord=False):
-        x.requires_grad_(True)
+        self.device = device
+
+    def forward(self, x, target_cls=None, sec_ord=False):
+        if target_cls == None:
+            target_cls = self.net(x).max(1)[1].item()
+
+        self._reset(x, sec_ord)
+
         pathes_x = self.pathes.view(self.steps, 1, 1, 1) * x
-        outputs = self.net(pathes_x)
-        sal = grad(outputs.mean(), x, create_graph=sec_ord)[0] * x.detach()
-        return sal
+        accus = self._predict(pathes_x)
 
+        sal = grad(accus[:, target_cls].mean(), x,
+                   create_graph=sec_ord)[0] * x.detach()
+        accu = self._predict(x.detach())
+        return sal, accu
 
-if __name__ == '__main__':
-    import torchvision
-    net = torchvision.models.resnet50(True).eval().to(0)
-    IG_attr = IntegratedGradient(net)
-    x = torch.rand(1, 3, 224, 224).to(0)
-    ig = IG_attr(x, 0)
-    print(ig.size())
+    def _reset(self, x, sec_ord):
+        if not sec_ord:
+            x.requires_grad_(True)
+
+    def _predict(self, x):
+        return F.softmax(self.net(x), 1)
