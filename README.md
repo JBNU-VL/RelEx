@@ -22,9 +22,9 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
 ### Untargeted Attack
 <img src="./data/untargeted.png"  width="700" height="370"></img>
 ### Structured Attack
-<span style="color:red">Figure will be here.</span>
+<img src="./data/structured.png"  width="700" height="700"></img>
 ### Unstructured Attack
-<span style="color:red">Figure will be here.</span>
+<img src="./data/unstructured.png"  width="700" height="1300"></img>
 
 
 ## Reference of Methods
