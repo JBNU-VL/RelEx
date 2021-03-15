@@ -8,20 +8,19 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
 * Adversarial method
     |method|Untargeted, PGD|Targeted, Structured|Targeted, Unstructured|
     |:---:|:---:|:---:|:---:|
-    |state|:white_check_mark:|:white_check_mark:|:construction:|
+    |state|:white_check_mark:|:white_check_mark:|:white_check_mark:|
 * Saliency method
     |method|Ours, RelEx|Real Time Saliency|GradCAM|DeepLIFT|SmoothGrad|Integrated Gradient|Simple Gradient|
     |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-    |state|:white_check_mark:|:white_check_mark:|:construction:|:construction:|:white_check_mark:|:white_check_mark:|:construction:|
+    |state|:white_check_mark:|:white_check_mark:|:white_check_mark:|:construction:|:white_check_mark:|:white_check_mark:|:construction:|
 #### :white_check_mark:: done, :construction:: refactoring
 ### Prerequisites
 <span style="color:red">details will be here.</span>
-<font color='red'>test blue color font</font>
 ### Running the code
 <span style="color:red">details will be here.</span>
 ## Adversarial defense example
 ### Untargeted Attack
-<span style="color:red">Figure will be here.</span>
+<img src="./data/untargeted.png"  width="700" height="370"></img>
 ### Structured Attack
 <span style="color:red">Figure will be here.</span>
 ### Unstructured Attack
@@ -39,4 +38,4 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
     * DeepLIFT: [Learning Important Features Through Propagating Activation Differences](https://arxiv.org/abs/1704.02685)
     * SmoothGrad: [SmoothGrad: removing noise by adding noise](https://arxiv.org/abs/1706.03825)
     * Integrated Gradient: [Axiomatic Attribution for Deep Networks](https://arxiv.org/abs/1703.01365)
-    * Simple Gradient: [How to Explain Individual Classification Decisions](https://www.jmlr.org/papers/v11/baehrens10a.html) and [Deep Inside Convolutional Networks: Visualising Image Classification Models and Saliency Maps](https://arxiv.org/abs/1312.6034)
+    * Simple Gradient: [Deep Inside Convolutional Networks: Visualising Image Classification Models and Saliency Maps](https://arxiv.org/abs/1312.6034)

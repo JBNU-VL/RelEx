@@ -1,5 +1,10 @@
 import torch
 
+from .models.adversarial import pgd_fn, ManipulationMethod, IterativeAttack
+from .models.saliency import RelEx, RealTimeSaliency, GradCAM, SmoothGrad, IntegratedGradient
+from .models.network import resnet50
+from .options import get_opts
+
 
 class SaliencyGenerator:
     def __init__(self, opts, expl):
@@ -10,6 +15,4 @@ class SaliencyGenerator:
 
 
 if __name__ == '__main__':
-    sal_generator = SaliencyGenerator()
-    x = torch.rand(1, 3, 224, 224)
-    print(exp_generator(x))
+    opts = get_opts()
