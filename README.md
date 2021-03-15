@@ -16,6 +16,7 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
 #### :white_check_mark:: done, :construction:: refactoring
 ### Prerequisites
 <span style="color:red">details will be here.</span>
+<font color='red'>test blue color font</font>
 ### Running the code
 <span style="color:red">details will be here.</span>
 ## Adversarial defense example
