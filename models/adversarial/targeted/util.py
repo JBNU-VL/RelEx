@@ -5,20 +5,20 @@ r'''
 '''
 
 
-def replace_activation2softplus(net, beta=10.):
-    if net.__class__.__name__ != 'RealTimeSaliency':
-        for child_name, child in net.named_children():
+def replace_activation2softplus(model, beta=10.):
+    if model.__class__.__name__ != 'RealTimeSaliency':
+        for child_name, child in model.named_children():
             if isinstance(child, nn.ReLU) or isinstance(child, nn.Softplus):
-                setattr(net, child_name, nn.Softplus(beta=beta))
+                setattr(model, child_name, nn.Softplus(beta=beta))
             else:
                 replace_activation2softplus(child, beta)
 
 
-def replace_activation2relu(net):
-    if net.__class__.__name__ != 'RealTimeSaliency':
-        for child_name, child in net.named_children():
+def replace_activation2relu(model):
+    if model.__class__.__name__ != 'RealTimeSaliency':
+        for child_name, child in model.named_children():
             if isinstance(child, nn.Softplus):
-                setattr(net, child_name, nn.ReLU())
+                setattr(model, child_name, nn.ReLU())
             else:
                 replace_activation2relu(child)
 

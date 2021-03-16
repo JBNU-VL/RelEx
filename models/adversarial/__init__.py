@@ -1,2 +1,2 @@
 from .targeted import ManipulationMethod, IterativeAttack
-from .untargeted import pgd_fn
+from .untargeted import ProjectedGradientDescent, pgd_fn

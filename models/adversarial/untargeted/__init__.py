@@ -1,1 +1,1 @@
-from .pgd import pgd_fn
+from .pgd import ProjectedGradientDescent, pgd_fn

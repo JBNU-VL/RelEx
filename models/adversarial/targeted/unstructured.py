@@ -6,9 +6,9 @@ from .util import replace_activation2softplus, replace_activation2relu, image_cl
 
 
 class IterativeAttack(nn.Module):
-    def __init__(self, method, eps, k=1000, num_iters=100, alpha=1,
-                 measurement='intersection', beta_growth=False, x_bounds=None,
-                 beta_range=None):
+    def __init__(self, method='topk', eps=1. / 255 / 0.225, k=1000,
+                 num_iters=100, alpha=1, measurement='intersection',
+                 beta_growth=False, x_bounds=None, beta_range=None):
         super().__init__()
         if method not in ('mass_center', 'topk', 'random', 'target'):
             raise ValueError(f'method `{method}` not supported.')
@@ -28,7 +28,7 @@ class IterativeAttack(nn.Module):
         self.x_bounds = x_bounds
         self.beta_range = beta_range
 
-    def forward(self, x, sal_method, target_map=None):
+    def forward(self, x, sal_method, eps=None, target_map=None):
         self.sal_method = sal_method
         sal, orig_accu = self.sal_method(x)
         sal = self._normalize(sal).detach()

@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.autograd import grad
 
 
@@ -28,8 +29,9 @@ class RelEx(nn.Module):
         self.device = device
         self.jacobian_vector_ones = torch.ones(
             self.batch_size, dtype=torch.float32, device=self.device)
-        self.jacobian_vector_weights = torch.ones(
-            self.batch_size, dtype=torch.float32, device=self.device) / self.batch_size
+        self.jacobian_vector_weights = self.jacobian_vector_ones / self.batch_size
+        # self.jacobian_vector_weights = torch.ones(
+        #     self.batch_size, dtype=torch.float32, device=self.device) / self.batch_size
 
         self.net = net
         self.criterion = Loss(self.lambda1, self.lambda2)
@@ -41,7 +43,8 @@ class RelEx(nn.Module):
             self._generate_grad(x, m)
             self._step(m)
 
-        return m
+        accu = self._predict(x.detach())
+        return m, accu
 
     def _reset(self, x, target_cls=None, sec_ord=False):
         self.target_cls = target_cls
@@ -61,8 +64,10 @@ class RelEx(nn.Module):
         foregnd_inputs = batch_x * m
         backgnd_inputs = batch_x * (1 - m)
 
-        foregnd_outputs = self.net(foregnd_inputs)[:, self.target_cls]
-        backgnd_outputs = self.net(backgnd_inputs)[:, self.target_cls]
+        foregnd_outputs = self._predict(foregnd_inputs)[:, self.target_cls]
+        backgnd_outputs = self._predict(backgnd_inputs)[:, self.target_cls]
+        # foregnd_outputs = self.net(foregnd_inputs)[:, self.target_cls]
+        # backgnd_outputs = self.net(backgnd_inputs)[:, self.target_cls]
 
         # normalizing gradient
         losses = self.criterion((foregnd_outputs, backgnd_outputs), m)
@@ -81,6 +86,9 @@ class RelEx(nn.Module):
         self.optimizer.step()
         self.optimizer.zero_grad()
         m.data.clamp_(0, 1)
+
+    def _predict(self, x):
+        return F.softmax(self.net(x), 1)
 
 
 class Loss(nn.Module):
