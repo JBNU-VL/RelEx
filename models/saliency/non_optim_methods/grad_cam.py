@@ -3,10 +3,23 @@ from torch import nn
 import torch.nn.functional as F
 
 
+def get_target_layers(net, target_layers):
+    _target_layers = None
+    for child_name, child in net.named_children():
+        if child_name == target_layers:
+            _target_layers = child
+            break
+    return _target_layers
+
+
 class GradCAM(nn.Module):
-    def __init__(self, net, target_layers, resize=True):
+    def __init__(self, net, target_layers='layer4', resize=True):
         super().__init__()
+        target_layers = get_target_layers(net, target_layers)
+        assert target_layers is not None, 'target_layers is not existing in net.'
+
         self.net = net
+
         if isinstance(target_layers, torch.nn.Module):
             target_layers = [target_layers]
         self.target_layers = target_layers

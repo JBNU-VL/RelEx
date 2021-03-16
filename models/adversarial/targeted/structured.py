@@ -9,7 +9,7 @@ r'''
 
 class ManipulationMethod(nn.Module):
     def __init__(self, lr=0.0002, num_iters=1500, factors=(1e11, 1e6),
-                 beta_range=(10., 100.), bounds=None):
+                 beta_range=(10., 100.), x_max_min_bounds=None):
         super().__init__()
         # hyper parameters
         self.lr = lr
@@ -18,7 +18,7 @@ class ManipulationMethod(nn.Module):
 
         self.criterion = Loss(factors)
 
-        self.bounds = bounds
+        self.x_max_min_bounds = x_max_min_bounds
 
     def forward(self, orig_x, target_x, sal_method):
         replace_activation2softplus(sal_method, beta=1000.)
@@ -54,7 +54,7 @@ class ManipulationMethod(nn.Module):
     def _step(self, adv_x):
         self.optimizer.step()
         self.optimizer.zero_grad()
-        image_clamp(adv_x, self.bounds)
+        image_clamp(adv_x, self.x_max_min_bounds)
 
     def _calc_beta(self, i):
         return self.beta_range[0] * (self.beta_range[1] / self.beta_range[0]) ** (i / self.num_iters)

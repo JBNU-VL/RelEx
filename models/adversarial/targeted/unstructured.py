@@ -46,6 +46,8 @@ class IterativeAttack(nn.Module):
         self.topk_mask[topk_indices] = 1.
 
         min_criterion = 1.
+        if eps is not None:
+            self.eps = eps
         _adv_x = self._reset(x.detach())
         adv_x = None
 

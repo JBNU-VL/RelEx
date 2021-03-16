@@ -1,5 +1,4 @@
 import torch
-import torch.utils.model_zoo as model_zoo
 import torchvision
 from torchvision.models.resnet import ResNet, Bottleneck
 
@@ -29,21 +28,15 @@ class ResNetEncoder(ResNet):
         return s0, s1, s2, s3, s4, s5, sX, sC
 
 
-def resnet50(encoder=False, robust=False, freezing=True, **kwargs):
-    if encoder:
+def resnet50(encoder=False, robust=False, **kwargs):
+    if encoder and not robust:
         net = ResNetEncoder(Bottleneck, [3, 4, 6, 3], **kwargs)
-    else:
+    elif not encoder and not robust:
         net = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
-
-    if not robust:
-        net.load_state_dict(model_zoo.load_url(
-            'https://download.pytorch.org/models/resnet50-19c8e357.pth'))
+    elif not encoder and robust:
+        net = ResNet(Bottleneck, [3, 4, 6, 3], num_classes=10, **kwargs)
     else:
-        pass
-
-    if freezing:
-        for p in net.parameters():
-            p.requires_grad_(False)
+        net = None
 
     return net
 
