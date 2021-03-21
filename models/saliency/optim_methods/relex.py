@@ -47,7 +47,10 @@ class RelEx(nn.Module):
         return m, accu
 
     def _reset(self, x, target_cls=None, sec_ord=False):
+        if target_cls == None:
+            target_cls = self.net(x).max(1)[1].item()
         self.target_cls = target_cls
+
         self.sec_ord = sec_ord  # whether calculate second order derivative
 
         self.x_std = (x.max() - x.min()) * self.x_std_level  # image std

@@ -88,12 +88,14 @@ def _get_structured_opts(parent_parser, parent_opts):
     opts.factors = (1e11, 1e6)
     opts.beta_range = (10., 100.)
 
-    # opts.x_max_min_bounds = ()
-
     # attack saliency methods
     opts.attack_methods = (
         'RealTimeSaliency', 'SmoothGrad', 'IntegratedGradient', 'GradCAM'
     )
+
+    # target x
+    opts.target_x_name = 'tiger_cat.jpeg'
+
     return opts
 
 
@@ -103,11 +105,12 @@ def _get_unstructured_opts(parent_parser):
     opts = parser.parse_args()
 
     # variables
+    opts.method = 'topk'
     opts.eps = 1. / 255 / 0.225
     opts.k = 1000
     opts.num_iters = 100
     opts.alpha = 1
-    opts.measurement = 'topk'
+    opts.measurement = 'intersection'
     opts.beta_growth = False
     opts.beta_range = (10., 100.)
 
@@ -131,7 +134,7 @@ def get_opts():
         'Building Reliable Explanations', add_help=False)
     parser.add_argument('--network', default='resnet50',
                         help='select between resnet and vgg, googlenet')
-    parser.add_argument('--gpu', default=False, action='store_true',
+    parser.add_argument('--gpu', default=True, action='store_true',
                         help='flag value for usage of gpu')
     # assert function will be add..
 
@@ -158,6 +161,7 @@ def get_opts():
     opts.realtime_sal = _get_realtime_sal_opts(parser)
     opts.smoothgrad = _get_smoothgrad_opts(parser)
     opts.intgrad = _get_integrated_gradient_opts(parser)
+    opts.gradcam = _get_gradcam_opts(parser)
 
     opts.available_adversarials = (
         'ProjectedGradientDescent', 'ManipulationMethod', 'IterativeAttack'
@@ -174,4 +178,5 @@ def get_opts():
 
 if __name__ == '__main__':
     opts = get_opts()
-    print(opts.max_bound)
+    print(opts.max_bound.max().item(), (1 - 0.406) / 0.225)
+    print(opts.min_bound.min().item(), (0 - 0.485) / 0.229)

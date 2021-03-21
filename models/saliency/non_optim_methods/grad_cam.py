@@ -5,10 +5,15 @@ import torch.nn.functional as F
 
 def get_target_layers(net, target_layers):
     _target_layers = None
+
     for child_name, child in net.named_children():
+        if child_name is 'module':
+            _target_layers = get_target_layers(child, target_layers)
+
         if child_name == target_layers:
             _target_layers = child
             break
+
     return _target_layers
 
 

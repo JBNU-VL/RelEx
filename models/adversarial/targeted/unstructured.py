@@ -8,7 +8,8 @@ from .util import replace_activation2softplus, replace_activation2relu, image_cl
 class IterativeAttack(nn.Module):
     def __init__(self, method='topk', eps=1. / 255 / 0.225, k=1000,
                  num_iters=100, alpha=1, measurement='intersection',
-                 beta_growth=False, x_bounds=None, beta_range=None):
+                 beta_growth=False, x_max_min_bounds=None, beta_range=None,
+                 device=None):
         super().__init__()
         if method not in ('mass_center', 'topk', 'random', 'target'):
             raise ValueError(f'method `{method}` not supported.')
@@ -25,7 +26,9 @@ class IterativeAttack(nn.Module):
 
         self.beta_growth = beta_growth  # True or False
 
-        self.x_bounds = x_bounds
+        self.x_bounds = (
+            x_max_min_bounds[0].to(device), x_max_min_bounds[1].to(device)
+        )
         self.beta_range = beta_range
 
     def forward(self, x, sal_method, eps=None, target_map=None):
@@ -63,8 +66,8 @@ class IterativeAttack(nn.Module):
             criterion = self.check_measure(_adv_x.detach(), target_cls)
 
             if criterion < min_criterion:
-                print(
-                    f'iter: {i}, criterion: {criterion}, current_beta: {current_beta}')
+                # print(
+                #     f'iter: {i}, criterion: {criterion}, current_beta: {current_beta}')
                 min_criterion = criterion
                 adv_x = _adv_x.clone().detach()
 

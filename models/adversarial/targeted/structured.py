@@ -9,7 +9,7 @@ r'''
 
 class ManipulationMethod(nn.Module):
     def __init__(self, lr=0.0002, num_iters=1500, factors=(1e11, 1e6),
-                 beta_range=(10., 100.), x_max_min_bounds=None):
+                 beta_range=(10., 100.), x_max_min_bounds=None, device=None):
         super().__init__()
         # hyper parameters
         self.lr = lr
@@ -18,7 +18,9 @@ class ManipulationMethod(nn.Module):
 
         self.criterion = Loss(factors)
 
-        self.x_max_min_bounds = x_max_min_bounds
+        self.x_max_min_bounds = (
+            x_max_min_bounds[0].to(device), x_max_min_bounds[1].to(device)
+        )
 
     def forward(self, orig_x, target_x, sal_method):
         replace_activation2softplus(sal_method, beta=1000.)

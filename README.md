@@ -1,5 +1,5 @@
 # RelEx
-This repository is implementation of "Building Reliable Explanations of Unreliable Neural Networks: Locally Smoothing Perspective of Model Interpretation", CVPR 2021(poster).
+This repository is implementation of "Building Reliable Explanations of Unreliable Neural Networks: Locally Smoothing Perspective of Model Interpretation", CVPR 2021.
 
 RelEx Paper: <span style="color:red">arXiv link will be here.</span>
 
