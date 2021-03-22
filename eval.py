@@ -1,207 +1,214 @@
-class RobustMetric:
-    def __init__(self, k=1000, h=224, w=224):
-        self.k = k
-        self.hw = float(h * w)
-        self.rank_values = torch.arange(
-            self.hw, dtype=torch.float32, device='cuda') + 1
+import os
+import torch
+from torch.utils.data import Dataset
+import collections
 
-    def robustness(self, org_exp_maps, adv_exp_maps):
-        batch_size = org_exp_maps.size(0)
-        org_exp_maps_flatten = org_exp_maps.reshape(batch_size, -1)
-        adv_exp_maps_flatten = adv_exp_maps.reshape(batch_size, -1)
+from models.network import load_network
+from utils import load_image
+from utils.evaluations import Robustness, Fieldility
+from utils.process import normalize
 
-        topk_metrics = self.topk_intersec(org_exp_maps_flatten, adv_exp_maps_flatten,
-                                          batch_size)
-        spearman_metrics = self.spearman_correlation(org_exp_maps_flatten, adv_exp_maps_flatten,
-                                                     batch_size)
-        return topk_metrics, spearman_metrics
+from options import get_opts
 
-    '''
-    https://github.com/amiratag/InterpretationFragility/blob/master/utils.py
-    it is used to np.intersec1d above code
+
+if __name__ == '__main__':
     '''
 
-    def topk_intersec(self, org_exp_maps_flatten, adv_exp_maps_flatten, batch_size=32):
-        ''' calculate recall '''
-        org_exp_maps_flatten = org_exp_maps_flatten.clone()
-        adv_exp_maps_flatten = adv_exp_maps_flatten.clone()
+    '''
+    opts = get_opts()
+    if opts.robust:
+        full_network_name = 'Robust-ResNet50'
+    else:
+        full_network_name = 'Natural-ResNet50'
 
-        ''' extract topk indices '''
-        org_topk_indices = torch.topk(
-            org_exp_maps_flatten, k=self.k, dim=-1)[1]
-        adv_topk_indices = torch.topk(
-            adv_exp_maps_flatten, k=self.k, dim=-1)[1]
+    workspace_dir = os.path.dirname(__file__)
+    data_root_dir = os.path.join(workspace_dir, 'data')
+    results_root_dir = os.path.join(workspace_dir, 'data')
 
-        ''' 
-        https://stackoverflow.com/questions/55110047/finding-non-intersection-of-two-pytorch-tensors 
-        reference to above site..
-        '''
-        adv_topk_compareview = adv_topk_indices.unsqueeze(
-            -1).repeat(1, 1, self.k)
-        adv_topk_compareview = adv_topk_compareview.permute(0, 2, 1)
+    orig_x_name = 'ILSVRC2012_val_00023552'
+    orig_x_full_dir = os.path.join(data_root_dir, orig_x_name + '.JPEG')
+    orig_x = load_image(orig_x_full_dir, gpu=opts.gpu)[0]
 
-        '''
-                   [[1,1,1,1],
-        compare     [2,2,2,2], transpose  and [1,3,5,7]
-                    [3,3,3,3],
-                    [4,4,4,4]]
-        '''
-        match_indices = (adv_topk_compareview ==
-                         org_topk_indices.unsqueeze(-1))  # batch by k by k
-        adv_topk_match_indices = match_indices.permute(
-            0, 2, 1).sum(dim=-1)  # batch by k
+    net = load_network(opts.network, encoder=False, robust=opts.robust)
+    retrieval_rate = RetrievalRate(net)
+    robustness = Robustness(device='cuda')
+    fieldility = Fieldility(net)
 
-        return adv_topk_match_indices.sum(dim=-1) / float(self.k)
+    '''
+    Load Saliency and Adversarial
+    '''
+    ############################################################################
+    # Original Saliency
+    orig_sal_sets = {}
+    orig_sal_list = []
+    sal_root_dir = os.path.join(
+        results_root_dir, 'saliency', full_network_name)
+    sal_method_names = os.listdir(sal_root_dir)
+    for sal_method_name in sal_method_names:
+        sal_full_dir = os.path.join(sal_root_dir, sal_method_name,
+                                    'original', orig_x_name + '.pt')
+        orig_sal = torch.load(sal_full_dir)
+        orig_sal_sets[sal_method_name] = orig_sal
+        orig_sal_list.append(orig_sal)
+    total_orig_sal = torch.cat(orig_sal_list)
+    ############################################################################
+    ############################################################################
+    # Untargeted, PGD
+    pgd_adv_x_list = []
+    pgd_root_dir = os.path.join(
+        results_root_dir, 'adversarial', full_network_name, 'PGD')
+    for pgd_eps in opts.untargeted.eps_sets:
+        pgd_adv_x_full_dir = os.path.join(
+            pgd_root_dir, f'eps{pgd_eps}', orig_x_name + '.pt')
+        pgd_adv_x = torch.load(pgd_adv_x_full_dir)
+        pgd_adv_x_list.append(pgd_adv_x)
+    total_pgd_adv_x = torch.cat(pgd_adv_x_list)
 
-    def spearman_correlation(self, org_exp_maps_flatten, adv_exp_maps_flatten, batch_size=32):
-        ''' batch sets vectorize '''
-        org_exp_maps_flatten = org_exp_maps_flatten.clone()
-        adv_exp_maps_flatten = adv_exp_maps_flatten.clone()
+    # Targeted, Structured, ManipulationMethod
+    structured_adv_x_set = {}
+    structured_root_dir = os.path.join(
+        results_root_dir, 'adversarial', full_network_name, 'Structured')
+    structured_att_methods = os.listdir(structured_root_dir)
+    for structured_att_method in structured_att_methods:
+        structured_adv_x_full_dir = os.path.join(
+            structured_root_dir, structured_att_method, orig_x_name + '.pt')
+        structured_adv_x = torch.load(structured_adv_x_full_dir)
+        structured_adv_x_set[structured_att_method] = structured_adv_x
 
-        ''' sorting as ascending'''
-        org_orders = torch.argsort(org_exp_maps_flatten, dim=-1)
-        adv_orders = torch.argsort(adv_exp_maps_flatten, dim=-1)
-        org_exp_maps_rank = torch.zeros_like(org_exp_maps_flatten)
-        adv_exp_maps_rank = torch.zeros_like(adv_exp_maps_flatten)
+    # Targeted, Unstructured, IterativeAttack
+    # unstructured_adv_x_sets = {}
+    unstructured_adv_x_sets = collections.defaultdict(dict)
+    unstructured_root_dir = os.path.join(
+        results_root_dir, 'adversarial', full_network_name, 'Unstructured')
+    unstructured_att_methods = os.listdir(unstructured_root_dir)
+    for unstructured_att_method in unstructured_att_methods:
+        unstructured_adv_x_list = []
 
-        ''' insert rank values using orders '''
-        for b_idx in range(batch_size):
-            org_exp_maps_rank[b_idx, org_orders[b_idx]] = self.rank_values
-            adv_exp_maps_rank[b_idx, adv_orders[b_idx]] = self.rank_values
+        for unstructured_eps in opts.unstructured.eps_sets:
+            unstructured_adv_x_full_dir = os.path.join(
+                unstructured_root_dir, unstructured_att_method,
+                f'eps{unstructured_eps}', orig_x_name + '.pt')
+            unstructured_adv_x = torch.load(unstructured_adv_x_full_dir)
+            unstructured_adv_x_list.append(x)
 
-        ''' calculate spearman's rank correlation coeffiefient'''
-        d = org_exp_maps_rank - adv_exp_maps_rank
-        num = 6 * (d**2).sum(dim=-1)
-        denom = self.hw * (self.hw**2 - 1)
+        total_unstructured_adv_x = torch.cat(unstructured_adv_x_list)
+        unstructured_adv_x_sets[opts.unstructured.method][unstructured_att_method] = total_unstructured_adv_x
+    ############################################################################
+    ############################################################################
+    # Adversarial saliency
+    adv_sal_sets = collections.defaultdict(dict)
+    for def_sal_method_name in sal_method_names:
+        # PGD
+        pgd_adv_sal_list = []
+        for pgd_eps in opts.untargeted.eps_sets:
+            adv_sal_full_dir = os.path.join(
+                sal_root_dir, def_sal_method_name, 'PGD', pgd_eps,
+                orig_x_name + '.pt')
+            pgd_adv_sal = torch.load(adv_sal_full_dir)
+            pgd_adv_sal_list.append(pgd_adv_sal)
+        total_pgd_adv_sal = torch.cat(pgd_adv_sal_list)
+        adv_sal_sets[def_sal_method_name]['PGD'] = total_pgd_adv_sal
 
-        return 1 - num / denom
+        # Structured
+        structured_adv_sal_set = {}
+        for att_sal_method_name in structured_att_methods:
+            adv_sal_full_dir = os.path.join(
+                sal_root_dir, def_sal_method_name, 'Structured',
+                att_sal_method_name, orig_x_name + '.pt')
+            structured_adv_sal = torch.load(adv_sal_full_dir)
+            structured_adv_sal_set[att_sal_method_name] = structured_adv_sal
+        adv_sal_sets[def_sal_method_name]['Structured'] = structured_adv_sal_set
 
+        # Unstructured
+        unstructured_adv_sal_sets = collections.defaultdict(dict)
+        for att_sal_method_name in unstructured_att_methods:
+            unstructured_adv_sal_list = []
+            for unstructured_eps in opts.unstructured.eps_sets:
+                adv_sal_full_dir = os.path.join(sal_root_dir, def_sal_method_name,
+                                                'Unstructured',
+                                                opts.unstructured.method,
+                                                att_sal_method_name,
+                                                unstructured_eps,
+                                                orig_x_name + '.pt')
+                unstructured_adv_sal = torch.load(adv_sal_full_dir)
+                unstructured_adv_sal_list.append(unstructured_adv_sal)
+            total_unstructured_adv_sal = torch.cat(unstructured_adv_sal_list)
+            unstructured_adv_sal_sets['topk'][att_sal_method_name] = total_unstructured_adv_sal
+        adv_sal_sets[def_sal_method_name]['Unstructured'] = unstructured_adv_sal_sets
+    ############################################################################
+    '''
+    Retrieval Rate
+    '''
+    for sal_method_name, orig_sal in orig_sal_sets.items():
+        print('PGD', sal_method_name)
+        pgd_adv_sals = adv_sal_sets[sal_method_name]['PGD']
 
-class FieldMetric():
-    def __init__(self, model, substrate_fn, step=224):
-        self.model = model
-        self.step = step
-        self.HW = 224 * 224
-        self.substrate_fn = substrate_fn
+        orig_sal_norm = normalize(orig_sal.clone(), sal_method_name)
+        pgd_adv_sals_norm = normalize(pgd_adv_sals.clone(), sal_method_name)
 
-    # calculate auc for x
-    def calc_game(self, x, exp_map, batch=False, field_mode=None, target_idx=None):
-        if not batch and field_mode == 'ins' or field_mode == 'pres':
-            # 20.11.06 | x: PGD, exp map: exp map of PGD or exp map of orig x
-            score = self._single_run(
-                x, exp_map, mode=field_mode, target_idx=target_idx)
-            return score
+        retrieval_rate_outputs = retrieval_rate(
+            orig_x, total_pgd_adv_x, orig_sal_norm, pgd_adv_sals_norm)
+        for input_type, retrieval_rate_output in retrieval_rate_outputs.items():
+            print(input_type, retrieval_rate_output)
 
-        if batch:
-            scores = []
-            # games_seqs = []
-            for mode in ['del', 'pres']:
-                # score, game_seqs = self._batch_run(x, exp_map, mode=mode)
-                score = self._batch_run(x, exp_map, mode=mode)
+        print('Structured', sal_method_name)
+        structured_adv_sal_set = adv_sal_sets[sal_method_name]['Structured']
+        for att_sal_method_name, structured_adv_x in structured_adv_x_set.items():
+            structured_adv_sal = structured_adv_sal_set[att_sal_method_name]
+            structured_adv_sal_norm = normalize(
+                structured_adv_sal.clone(), sal_method_name)
+            retrieval_rate_outputs = retrieval_rate(
+                orig_x, structured_adv_x, orig_sal_norm, structured_adv_sal_norm)
 
-                scores.append(score)
-                # games_seqs.append(game_seqs)
+            for input_type, retrieval_rate_output in retrieval_rate_outputs.items():
+                print(input_type, retrieval_rate_output)
 
-            # return scores, games_seqs
-            return scores
-            # return self._calc_comb_avg(auces[0], auces[1])
+        print('Unstructured', sal_method_name)
+        unstructured_adv_sal_sets = adv_sal_sets[sal_method_name]['Unstructured']
+        for unstructured_method, unstructured_adv_sal_set in unstructured_adv_sal_sets.items():
+            for att_sal_method_name, unstructured_adv_sals in unstructured_adv_sal_set.items():
+                total_unstructured_adv_x = unstructured_adv_x_sets[
+                    unstructured_method][att_sal_method_name]
+                unstructured_adv_sals_norm = normalize(
+                    unstructured_adv_sals.clone(), sal_method_name)
+                retrieval_rate_outputs = retrieval_rate(orig_x, total_unstructured_adv_x,
+                                                        orig_sal_norm, unstructured_adv_sals_norm)
+                for input_type, retrieval_rate_output in retrieval_rate_outputs.items():
+                    print(input_type, retrieval_rate_output)
+    '''
+    Robustness
+    '''
+    for sal_method_name, orig_sal in orig_sal_sets.items():
+        print('PGD', sal_method_name)
+        pgd_adv_sals = adv_sal_sets[sal_method_name]['PGD']
+        robustness_outputs = robustness(orig_sal, pgd_adv_sals)
+        print('top-k, intersection', robustness_outputs[0])
+        print('spearman correlation', robustness_outputs[1])
 
-        scores = []
-        for mode in ['del', 'pres']:
-            score = self._single_run(x, exp_map, mode=mode)
-            scores.append(score)
+    for sal_method_name, orig_sal in orig_sal_sets.items():
+        print('Structured', sal_method_name)
+        structured_adv_sal_set = adv_sal_sets[sal_method_name]['Structured']
+        for att_method_name, structured_adv_sal in structured_adv_sal_set.items():
+            robustness_outputs = robustness(orig_sal, structured_adv_sal)
+            print('top-k, intersection', robustness_outputs[0])
+            print('spearman correlation', robustness_outputs[1])
 
-        return scores
+    for sal_method_name, orig_sal in orig_sal_sets.items():
+        print('Unstructured', sal_method_name)
+        unstructured_adv_sal_sets = adv_sal_sets[sal_method_name]['Unstructured']
+        for unstructured_method, unstructured_adv_sal_set in unstructured_adv_sal_sets.items():
+            for att_sal_method_name, unstructured_adv_sals in unstructured_adv_sal_set.items():
+                robustness_outpust = robustness(
+                    orig_sal, unstructured_adv_sals)
+                print('top-k, intersection', robustness_outpust[0])
+                print('spearman correlation', robustness_outpust[1])
 
-    def get_metric(self):
-        pass
-
-    def _calc_comb_avg(self, x, y):
-        denom = 1 / x + 1 / y
-        return 2 / denom
-
-    @torch.no_grad()
-    def _single_run(self, x, exp_map, mode='pres', target_idx=None):
-        outputs = self.model(x)
-        if target_idx == None:
-            target_idx = torch.argmax(outputs.type(torch.float32))
-
-        n_steps = (self.HW + self.step - 1) // self.step
-
-        if mode == 'del' or mode == 'pres':
-            start = x.clone()
-            finish = self.substrate_fn(x)
-
-        elif mode == 'ins':
-            start = self.substrate_fn(x)
-            finish = x.clone()
-
-        scores = torch.zeros(n_steps + 1)
-
-        # Coordinates of pixels in order of decreasing saliency
-        if mode == 'pres':
-            salient_order = torch.argsort(
-                exp_map.reshape(-1), descending=False)
-        else:
-            salient_order = torch.argsort(exp_map.reshape(-1), descending=True)
-
-        for i in range(n_steps + 1):
-            pred = self.model(start)
-            scores[i] = pred[0, target_idx]
-
-            if i < n_steps:
-                coords = salient_order[self.step * i: self.step * (i + 1)]
-                start.view(
-                    1, 3, -1)[0, :, coords] = finish.view(1, 3, -1)[0, :, coords]
-
-        return scores
-
-    @torch.no_grad()
-    def _batch_run(self, x, exp_mapes, mode='pres'):
-        outputs = self.model(x)
-        target_indices = torch.argmax(outputs.type(torch.float32), dim=-1)
-        n_steps = (self.HW + self.step - 1) // self.step
-        batch_size = exp_mapes.size(0)
-        batch_indices = torch.arange(batch_size)
-
-        if mode == 'del' or mode == 'pres':
-            starts = x.detach().clone()
-            finishes = self.substrate_fn(x)
-
-        elif mode == 'ins':
-            starts = self.substrate_fn(x)
-            finishes = x.detach().clone()
-
-        batch_scores = torch.zeros(batch_size, n_steps + 1)
-
-        # Coordinates of pixels in order of decreasing saliency
-        if mode == 'pres':
-            salient_orders = torch.argsort(exp_mapes.reshape(
-                batch_size, -1), descending=False, dim=-1)
-        else:
-            salient_orders = torch.argsort(exp_mapes.reshape(
-                batch_size, -1), descending=True, dim=-1)
-
-        # game_seqs = []
-        for i in range(n_steps + 1):
-            preds = self.model(starts)
-            batch_scores[:, i] = preds[batch_indices, target_indices]
-
-            # if i == 0 or (i+1) % 15 == 0:
-            #     game_seqs.append(starts.detach().clone())
-
-            if i < n_steps:
-                batch_coords = salient_orders[batch_indices,
-                                              self.step * i: self.step * (i + 1)]
-
-                for b_idx, coords in enumerate(batch_coords):
-                    starts.view(
-                        batch_size, 3, -1)[b_idx, :, coords] = finishes.view(batch_size, 3, -1)[b_idx, :, coords]
-
-                # batch_coords.unsqueeze_(-1)
-
-                # starts.permute(0,2,3,1).view(batch_size, self.HW, 3).scatter_(1, \
-                #     batch_coords, finishes.permute(0,2,3,1).view(batch_size, self.HW, 3))
-
-        return batch_scores
-        # return batch_scores, game_seqs
+    '''
+    Fieldility
+    '''
+    for sal_method_name, orig_sal in orig_sal_sets.items():
+        print('PGD', sal_method_name)
+        pgd_adv_sals = adv_sal_sets[sal_method_name]['PGD']
+        field_outpus = fieldility(orig_x, torch.cat([orig_sal, pgd_adv_sals]))
+        print('Deletion', field_outpus[0])
+        print('Preservation', field_outpus[1])

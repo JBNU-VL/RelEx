@@ -14,7 +14,7 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
     |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
     |state|:white_check_mark:|:white_check_mark:|:white_check_mark:|:construction:|:white_check_mark:|:white_check_mark:|:construction:|
 #### :white_check_mark:: done, :construction:: refactoring
-### Prerequisites
+### Requirements
 <span style="color:red">details will be here.</span>
 ### Running the code
 <span style="color:red">details will be here.</span>

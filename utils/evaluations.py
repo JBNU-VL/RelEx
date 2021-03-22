@@ -1,188 +1,205 @@
 import torch
+from torch.nn import functional as F
+import numpy as np
+
+'''
+This script is used to provide funtion to evaluate Saliency against Adversarial example.
+'''
 
 
-class RobustMetric:
-    def __init__(self, k=1000, h=224, w=224):
+class RetrievalRate:
+    def __init__(self, net):
+        self.net = net
+
+    def __call__(self, orig_x, adv_x, orig_sal, adv_sal):
+        exp = orig_x * orig_sal
+        recov_exp = adv_x * orig_sal
+        adv_exp = adv_x * adv_sal
+        recov_adv_exp = orig_sal * adv_sal
+
+        exp_top_accu1 = self.top1_accu(orig_x, exp)
+        recov_exp_top_accu1 = self.top1_accu(orig_x, recov_exp)
+        adv_exp_top1_accu1 = self.top1_accu(orig_x, adv_exp)
+        recov_adv_exp_top1_accu1 = self.top1_accu(orig_x, recov_adv_exp)
+
+        top_accu1_outputs = {
+            'orig_x * orig_sal': exp_top_accu1,
+            'adv_x * orig_sal': recov_exp_top_accu1,
+            'adv_x * adv_sal': adv_exp_top1_accu1,
+            'orig_x * adv_sal': recov_adv_exp_top1_accu1
+        }
+
+        return top_accu1_outputs
+
+    def top1_accu(self, orig_x, input_x):
+        target_indices = self.net(x).max(1)[1]
+        max_indices = self.net(input_x).max(1)[1]
+
+        N = float(target_indices.size(0))
+        match_sum = (target_indices == max_indices).sum()
+        accu = match_sum / N
+        return accu.item()
+
+
+class Robustness:
+    '''
+
+    '''
+
+    def __init__(self, k=1000, h=224, w=224, device=None):
         self.k = k
         self.hw = float(h * w)
         self.rank_values = torch.arange(
-            self.hw, dtype=torch.float32, device='cuda') + 1
+            self.hw, dtype=torch.float32, device=device) + 1
 
-    def robustness(self, org_exp_maps, adv_exp_maps):
-        batch_size = org_exp_maps.size(0)
-        org_exp_maps_flatten = org_exp_maps.reshape(batch_size, -1)
-        adv_exp_maps_flatten = adv_exp_maps.reshape(batch_size, -1)
+    def __call__(self, orig_sal_set, adv_sal_set):
+        orig_sal_set_flatten = orig_sal_set.flatten(start_dim=1)
+        adv_sal_set_flatten = adv_sal_set.flatten(start_dim=1)
 
-        topk_metrics = self.topk_intersec(org_exp_maps_flatten, adv_exp_maps_flatten,
-                                          batch_size)
-        spearman_metrics = self.spearman_correlation(org_exp_maps_flatten, adv_exp_maps_flatten,
-                                                     batch_size)
-        return topk_metrics, spearman_metrics
+        topk_metric = self.topk_intersecection(
+            orig_sal_set_flatten, adv_sal_set_flatten)
+        spearman_metric = self.spearman_correlation(
+            orig_sal_set_flatten, adv_sal_set_flatten)
+        return topk_metric, spearman_metric
 
-    '''
-    https://github.com/amiratag/InterpretationFragility/blob/master/utils.py
-    it is used to np.intersec1d above code
-    '''
-
-    def topk_intersec(self, org_exp_maps_flatten, adv_exp_maps_flatten, batch_size=32):
-        ''' calculate recall '''
-        org_exp_maps_flatten = org_exp_maps_flatten.clone()
-        adv_exp_maps_flatten = adv_exp_maps_flatten.clone()
-
-        ''' extract topk indices '''
-        org_topk_indices = torch.topk(
-            org_exp_maps_flatten, k=self.k, dim=-1)[1]
+    def topk_intersecection(self, orig_sal_set_flatten, adv_sal_set_flatten):
+        orig_topk_indices = torch.topk(
+            orig_sal_set_flatten, k=self.k, dim=-1)[1]
         adv_topk_indices = torch.topk(
-            adv_exp_maps_flatten, k=self.k, dim=-1)[1]
+            adv_sal_set_flatten, k=self.k, dim=-1)[1]
 
-        ''' 
-        https://stackoverflow.com/questions/55110047/finding-non-intersection-of-two-pytorch-tensors 
-        reference to above site..
-        '''
         adv_topk_compareview = adv_topk_indices.unsqueeze(
             -1).repeat(1, 1, self.k)
         adv_topk_compareview = adv_topk_compareview.permute(0, 2, 1)
 
-        '''
-                   [[1,1,1,1],
-        compare     [2,2,2,2], transpose  and [1,3,5,7]
-                    [3,3,3,3],
-                    [4,4,4,4]]
-        '''
         match_indices = (adv_topk_compareview ==
-                         org_topk_indices.unsqueeze(-1))  # batch by k by k
+                         orig_topk_indices.unsqueeze(-1))  # batch by k by k
         adv_topk_match_indices = match_indices.permute(
             0, 2, 1).sum(dim=-1)  # batch by k
 
         return adv_topk_match_indices.sum(dim=-1) / float(self.k)
 
-    def spearman_correlation(self, org_exp_maps_flatten, adv_exp_maps_flatten, batch_size=32):
-        org_exp_maps_flatten = org_exp_maps_flatten.clone()
-        adv_exp_maps_flatten = adv_exp_maps_flatten.clone()
+    def spearman_correlation(self, orig_sal_set_flatten, adv_sal_set_flatten):
+        orig_orders = torch.argsort(orig_sal_set_flatten, dim=-1)
+        adv_orders = torch.argsort(adv_sal_set_flatten, dim=-1)
+        orig_sal_set_rank = torch.zeros_like(orig_sal_set_flatten)
+        adv_sal_set_rank = torch.zeros_like(adv_sal_set_flatten)
 
-        ''' sorting as ascending'''
-        org_orders = torch.argsort(org_exp_maps_flatten, dim=-1)
-        adv_orders = torch.argsort(adv_exp_maps_flatten, dim=-1)
-        org_exp_maps_rank = torch.zeros_like(org_exp_maps_flatten)
-        adv_exp_maps_rank = torch.zeros_like(adv_exp_maps_flatten)
+        for b_idx in range(adv_sal_set_flatten.size(0)):
+            orig_sal_set_rank[b_idx, orig_orders[b_idx]] = self.rank_values
+            adv_sal_set_rank[b_idx, adv_orders[b_idx]] = self.rank_values
 
-        ''' insert rank values using orders '''
-        for b_idx in range(batch_size):
-            org_exp_maps_rank[b_idx, org_orders[b_idx]] = self.rank_values
-            adv_exp_maps_rank[b_idx, adv_orders[b_idx]] = self.rank_values
-
-        ''' calculate spearman's rank correlation coeffiefient'''
-        d = org_exp_maps_rank - adv_exp_maps_rank
+        d = orig_sal_set_rank - adv_sal_set_rank
         num = 6 * (d**2).sum(dim=-1)
         denom = self.hw * (self.hw**2 - 1)
-
         return 1 - num / denom
 
 
-class FieldMetric():
-    def __init__(self, model, substrate_fn, step=224):
-        self.model = model
+class Fieldility:
+    '''
+    '''
+
+    def __init__(self, net, substrate_fn=torch.zeros_like, step=224):
+        self.net = net
         self.step = step
-        self.HW = 224 * 224
         self.substrate_fn = substrate_fn
 
     # calculate auc for x
-    def calc_game(self, x, exp_map, batch=False, field_mode=None, target_idx=None):
-        if not batch and field_mode == 'ins' or field_mode == 'pres':
-            score = self._single_run(
-                x, exp_map, mode=field_mode, target_idx=target_idx)
-            return score
+    # def calculate_game(self, x, sal_set, batch=False):
+    #     scores = []
+    #     for mode in ['deletion', 'preservation']:
+    #         score = self._run(x, sal_set, mode=mode)
+    #         # score = self._batch_run(x, exp_map, mode=mode)
+    #         scores.append(score)
 
-        if batch:
-            scores = []
-            for mode in ['del', 'pres']:
-                score = self._batch_run(x, exp_map, mode=mode)
+    #     del_auc = self.calculate_auc(scores[0])
+    #     pres_auc = self.calculate_auc(scores[1])
+    #     harm_auc = self.calculate_harmonic_avg(del_auc, pres_auc)
 
-                scores.append(score)
+    #     return del_auc, pres_auc, harm_auc
 
-            # return scores, games_seqs
-            return scores
-
+    def __call__(self, x, sal_set):
         scores = []
-        for mode in ['del', 'pres']:
-            score = self._single_run(x, exp_map, mode=mode)
+        for mode in ['deletion', 'preservation']:
+            score = self._run(x, sal_set, mode=mode)
             scores.append(score)
 
-        return scores
+        del_auc = self.calculate_auc(scores[0])
+        pres_auc = self.calculate_auc(scores[1])
+        harm_auc = self.calculate_harmonic_avg(del_auc, pres_auc)
 
-    def get_metric(self):
-        pass
+        return del_auc, pres_auc, harm_auc
 
-    def _calc_comb_avg(self, x, y):
-        denom = 1 / x + 1 / y
+    def calculate_auc(self, scores):
+        '''
+        calculate AUC under scores
+
+        Args:
+        Returns:
+        '''
+        assert len(scores.size()) == 2, 'scores shape is B by HW'
+        return (scores.sum(dim=-1) - scores[:, 0] / 2 - scores[:, -1] / 2) / (scores.size(-1) - 1)
+
+    def calculate_harmonic_avg(self, x1, x2):
+        denom = 1 / x1 + 1 / x2
         return 2 / denom
 
-    @torch.no_grad()
-    def _single_run(self, x, exp_map, mode='pres', target_idx=None):
-        outputs = self.model(x)
-        if target_idx == None:
-            target_idx = torch.argmax(outputs.type(torch.float32))
+    # @torch.no_grad()
+    # def _single_run(self, x, exp_map, mode='preservation', target_idx=None):
+    #     outputs = self.model(x)
+    #     if target_idx == None:
+    #         target_idx = torch.argmax(outputs.type(torch.float32))
 
-        n_steps = (self.HW + self.step - 1) // self.step
+    #     n_steps = (self.HW + self.step - 1) // self.step
 
-        if mode == 'del' or mode == 'pres':
-            start = x.clone()
-            finish = self.substrate_fn(x)
+    #     start = x.clone()
+    #     finish = self.substrate_fn(x)
 
-        elif mode == 'ins':
-            start = self.substrate_fn(x)
-            finish = x.clone()
+    #     scores = torch.zeros(n_steps + 1)
 
-        scores = torch.zeros(n_steps + 1)
+    #     # Coordinates of pixels in order of decreasing saliency
+    #     if mode == 'preservation':
+    #         salient_order = torch.argsort(
+    #             exp_map.reshape(-1), descending=False)
+    #     else:
+    #         salient_order = torch.argsort(exp_map.reshape(-1), descending=True)
 
-        # Coordinates of pixels in order of decreasing saliency
-        if mode == 'pres':
-            salient_order = torch.argsort(
-                exp_map.reshape(-1), descending=False)
-        else:
-            salient_order = torch.argsort(exp_map.reshape(-1), descending=True)
+    #     for i in range(n_steps + 1):
+    #         _score = F.softmax(self.net(start), 1)
+    #         scores[i] = _score[0, target_idx]
 
-        for i in range(n_steps + 1):
-            pred = self.model(start)
-            scores[i] = pred[0, target_idx]
-
-            if i < n_steps:
-                coords = salient_order[self.step * i: self.step * (i + 1)]
-                start.view(
-                    1, 3, -1)[0, :, coords] = finish.view(1, 3, -1)[0, :, coords]
+    #         if i < n_steps:
+    #             coords = salient_order[self.step * i: self.step * (i + 1)]
+    #             start.view(
+    #                 1, 3, -1)[0, :, coords] = finish.view(1, 3, -1)[0, :, coords]
 
         return scores
 
     @torch.no_grad()
-    def _batch_run(self, x, exp_mapes, mode='pres'):
-        outputs = self.model(x)
+    def _run(self, x, sal_set, mode='preservation'):
+        outputs = self.net(x)
         target_indices = torch.argmax(outputs.type(torch.float32), dim=-1)
-        n_steps = (self.HW + self.step - 1) // self.step
-        batch_size = exp_mapes.size(0)
+
+        hw = x.size(2) * x.size(3)
+        n_steps = (hw + self.step - 1) // self.step
+        batch_size = sal_set.size(0)
         batch_indices = torch.arange(batch_size)
 
-        if mode == 'del' or mode == 'pres':
-            starts = x.detach().clone()
-            finishes = self.substrate_fn(x)
-
-        elif mode == 'ins':
-            starts = self.substrate_fn(x)
-            finishes = x.detach().clone()
+        starts = x.detach().clone()
+        finishes = self.substrate_fn(x)
 
         batch_scores = torch.zeros(batch_size, n_steps + 1)
 
-        # Coordinates of pixels in order of decreasing saliency
-        if mode == 'pres':
-            salient_orders = torch.argsort(exp_mapes.reshape(
+        if mode == 'preservation':
+            salient_orders = torch.argsort(sal_set.reshape(
                 batch_size, -1), descending=False, dim=-1)
         else:
-            salient_orders = torch.argsort(exp_mapes.reshape(
+            salient_orders = torch.argsort(sal_set.reshape(
                 batch_size, -1), descending=True, dim=-1)
 
-        # game_seqs = []
         for i in range(n_steps + 1):
-            preds = self.model(starts)
-            batch_scores[:, i] = preds[batch_indices, target_indices]
+            _scores = F.softmax(self.net(starts), 1)
+            batch_scores[:, i] = _scores[batch_indices, target_indices]
 
             if i < n_steps:
                 batch_coords = salient_orders[batch_indices,

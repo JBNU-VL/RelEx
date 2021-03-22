@@ -1,11 +1,42 @@
 import torch
 import torchvision
-from torchvision.models.resnet import ResNet, Bottleneck
+from torchvision.models.resnet import ResNet
 
 '''
 DeepLift: relu position is changed
 RT-Sal: ResNet50encoder
 '''
+
+
+class Bottleneck(torchvision.models.resnet.Bottleneck):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        del self.relu
+        self.relu1 = torch.nn.ReLU(inplace=True)
+        self.relu2 = torch.nn.ReLU(inplace=True)
+        self.relu3 = torch.nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu1(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu2(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu3(out)
+
+        return out
 
 
 class ResNetEncoder(ResNet):

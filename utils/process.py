@@ -35,10 +35,17 @@ def depreprocess_image(img, size=224):
     return img
 
 
-def normalize(sal, plane=True, percentile=True):
-    sal = torch.abs(sal)[0]
+def normalize(sal, sal_method_name='RelEx', plane=False, percentile=False):
+    if sal_method_name == 'RelEx':
+        return sal
+
+    if sal_method_name in ['SmoothGrad', 'IntegratedGradient', 'DeepLIFT', 'SimpleGradient']:
+        plane = True
+        percentile = True
+
+    sal = torch.abs(sal)
     if plane:
-        sal = sal.sum(dim=0)
+        sal = sal.sum(dim=1, keepdim=True)
 
     if percentile:
         sal_max = np.percentile(sal, 99)

@@ -136,6 +136,9 @@ def get_opts():
                         help='select between resnet and vgg, googlenet')
     parser.add_argument('--gpu', default=True, action='store_true',
                         help='flag value for usage of gpu')
+    parser.add_argument('--robust', default=False, action='store_true',
+                        help='flag value for selecting adversarilly trained model')
+
     # assert function will be add..
 
     opts = parser.parse_args()
@@ -171,7 +174,7 @@ def get_opts():
         'GradCAM'
     )
 
-    opts.gpus = '0,1,2,3,4'
+    opts.gpus = '0,1,2,3,4,5,6'
 
     return opts
 
