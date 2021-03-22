@@ -12,7 +12,8 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
 * Saliency method
     |method|Ours, RelEx|Real Time Saliency|GradCAM|DeepLIFT|SmoothGrad|Integrated Gradient|Simple Gradient|
     |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-    |state|:white_check_mark:|:white_check_mark:|:white_check_mark:|:construction:|:white_check_mark:|:white_check_mark:|:construction:|
+    |state|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
+    |library|no|no|no|captum|no|no|no|
 #### :white_check_mark:: done, :construction:: refactoring
 ### Requirements
 <span style="color:red">details will be here.</span>

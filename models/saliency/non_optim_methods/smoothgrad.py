@@ -29,7 +29,7 @@ class SmoothGrad(nn.Module):
         accus = self._predict(batch_x)
 
         sal = grad(accus[:, target_cls].mean(), x, create_graph=sec_ord)[0]
-        accu = self._predict(x.detach())
+        accu = self._predict(x)
         return sal, accu
 
     def _reset(self, x, sec_ord):

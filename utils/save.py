@@ -6,7 +6,7 @@ DATA_ROOT_DIR = os.path.dirname(os.path.dirname(__file__)) + '/results'
 
 def make_dir(dirname):
     try:
-        if not(osp.isdir(dirname)):
+        if not(os.path.isdir(dirname)):
             os.makedirs(dirname)
     except OSError:
         print(f'Failed Create Your Directory : {dirname}')

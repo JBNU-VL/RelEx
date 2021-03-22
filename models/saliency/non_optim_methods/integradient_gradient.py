@@ -28,7 +28,7 @@ class IntegratedGradient(nn.Module):
 
         sal = grad(accus[:, target_cls].mean(), x,
                    create_graph=sec_ord)[0] * x.detach()
-        accu = self._predict(x.detach())
+        accu = self._predict(x)
         return sal, accu
 
     def _reset(self, x, sec_ord):
