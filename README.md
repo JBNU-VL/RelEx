@@ -12,7 +12,6 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
     |method|Untargeted, PGD|Targeted, Structured|Targeted, Unstructured|
     |:---:|:---:|:---:|:---:|
     |state|:white_check_mark:|:white_check_mark:|:white_check_mark:|
-    
     |dependency|CleverHans|N/A|N/A|
 * Saliency method
     |method|Ours, RelEx|Real Time Saliency|GradCAM|DeepLIFT|SmoothGrad|Integrated Gradient|Simple Gradient|
