@@ -3,9 +3,9 @@ This repository is implementation of "Building Reliable Explanations of Unreliab
 
 RelEx Paper: <span style="color:red">arXiv link will be here.</span>
 ## Authors
-    * Dohun Lim
-    * Hyeonseok Lee
-    * Sungchan Kim
+* Dohun Lim
+* Hyeonseok Lee
+* Sungchan Kim
 ## Usage
 ### Please note available methods like below.
 * Adversarial method
