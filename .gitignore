@@ -157,3 +157,10 @@ test_script/
 notebook/
 .ipynb_checkpoints/
 */.ipynb_checkpoints/*
+
+models/saliency/optim_methods/mask.py
+models/saliency/non_optim_methods/lrp.py
+
+models/network/modules/
+models/network/vgg.py
+models/network/googlenet.py
