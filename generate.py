@@ -122,54 +122,6 @@ class Generator:
         results['adversarial'] = adv_x_sets
         results['saliency'] = orig_sal_sets
         results['adversarial_saliency'] = adv_sal_sets
-
-        ########################################################################
-        print('Output Test')
-        _adv_x_sets, _orig_sal_sets, _adv_sal_sets = results.values()
-
-        # Adversarial
-        print('Adversarial')
-        pgd_adv_x_sets, man_adv_x_sets, iter_att_adv_x_sets = _adv_x_sets.values()
-        print('PGD')
-        for eps_name, adv_x in pgd_adv_x_sets.items():
-            print(eps_name, adv_x.size())
-        print('Manipulation')
-        for sal_method_name, adv_x in man_adv_x_sets.items():
-            print(sal_method_name, adv_x.size())
-        print('IterativeAttack')
-        for unstructured_method_name, _unstructured_set in iter_att_adv_x_sets.items():
-            for sal_method_name, inner_dict in _unstructured_set.items():
-                for eps_name, adv_x in inner_dict.items():
-                    print(unstructured_method_name,
-                          sal_method_name, eps_name, adv_x.size())
-
-        # Saliency
-        print('Saliency')
-        for sal_method_name, sal in _orig_sal_sets.items():
-            print(sal_method_name, sal.size())
-
-        # Adversarial Saliency
-        pgd_adv_sal_sets, man_adv_sal_sets, iter_att_adv_sal_sets = _adv_sal_sets.values()
-        print('PGD Saliency')
-        for eps_name, adv_sal_sets in pgd_adv_sal_sets.items():
-            for defense_sal_method_name, adv_sal in adv_sal_sets.items():
-                print(eps_name, defense_sal_method_name, adv_sal.size())
-
-        print('Manipulation Saliency')
-        for attack_sal_method_name, adv_sal_sets in man_adv_sal_sets.items():
-            for defense_sal_method_name, adv_sal in adv_sal_sets.items():
-                print(attack_sal_method_name,
-                      defense_sal_method_name, adv_sal.size())
-
-        print('IterativeAttack Saliency')
-        for unstructured_method_name, _unstructured_set in iter_att_adv_sal_sets.items():
-            for att_sal_method_name, inner_dict in _unstructured_set.items():
-                for eps_name, adv_sal_sets in inner_dict.items():
-                    for def_sal_method, adv_sal in adv_sal_sets.items():
-                        print(unstructured_method_name, att_sal_method_name, def_sal_method,
-                              eps_name, adv_sal.size())
-        ########################################################################
-
         return results
 
     def generate_adv(self, x):
@@ -314,7 +266,7 @@ if __name__ == '__main__':
     ############################################################################
 
     natural_results = natural_generator(x.clone())
-    # robust_results = robust_generator(x.clone())
+    robust_results = robust_generator(x.clone())
 
     ############################################################################
     torch.cuda.synchronize()  # Waitting for GPU Tasks
@@ -322,11 +274,8 @@ if __name__ == '__main__':
     elapsed_time = time.strftime('%H:%M:%S', time.gmtime(end))
     print(f'Generating elapsed Time | {elapsed_time}')
 
-    # results = {'Natural': natural_results,
-    #            'Robust': robust_results,
-    #            'network_name': 'ResNet50',
-    #            'img_name': img_name.split('.'[0])}
     results = {'Natural': natural_results,
+               'Robust': robust_results,
                'network_name': 'ResNet50',
-               'img_name': img_name.split('.'[0])}
+               'img_name': img_name.split('.')[0]}
     save_results(results)

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import numpy as np
-from cleverhans.future.torch.attacks import projected_gradient_descent
+from cleverhans.torch.attacks.projected_gradient_descent import projected_gradient_descent as _pgd_fn
 
 
 class ProjectedGradientDescent:
@@ -25,8 +25,7 @@ class ProjectedGradientDescent:
 
 def pgd_fn(net, x, eps=0.07, a=0.01, K=40, norm=np.inf, max_bound=None,
            min_bound=None):
-    from cleverhans.future.torch.attacks import projected_gradient_descent
-    adv_x = projected_gradient_descent(
+    adv_x = _pgd_fn(
         model_fn=net,
         x=x,
         eps=eps,
@@ -35,6 +34,5 @@ def pgd_fn(net, x, eps=0.07, a=0.01, K=40, norm=np.inf, max_bound=None,
         norm=norm,
         clip_max=max_bound,
         clip_min=min_bound,
-        sanity_checks=False
-    )
+        sanity_checks=False)
     return adv_x

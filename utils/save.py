@@ -70,7 +70,8 @@ def save_sal(sal_sets, img_name, network_name='Natural-ResNet50'):
             DATA_ROOT_DIR, 'saliency', network_name, sal_method_name, 'original')
         make_dir(sal_method_root_dir)
 
-        torch.save(sal.cpu(), os.path.join(sal_method_name, img_name + '.pt'))
+        torch.save(sal.cpu(), os.path.join(
+            sal_method_root_dir, img_name + '.pt'))
 
 
 def save_adv_sal(adv_sal_sets, img_name, network_name='Natural-ResNet50'):
