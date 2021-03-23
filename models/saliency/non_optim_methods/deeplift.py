@@ -14,6 +14,8 @@ class DeepLIFT(nn.Module):
     def forward(self, x, target_cls=None):
         if target_cls == None:
             target_cls = self.net(x).max(1)[1].item()
+        elif isinstance(target_cls, torch.Tensor):
+            target_cls = target_cls.item()
 
         sal = self.captum_dl.attribute(x, target=target_cls)
         accu = self._predict(x)

@@ -12,6 +12,7 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
     |method|Untargeted, PGD|Targeted, Structured|Targeted, Unstructured|
     |:---:|:---:|:---:|:---:|
     |state|:white_check_mark:|:white_check_mark:|:white_check_mark:|
+    
     |dependency|CleverHans|N/A|N/A|
 * Saliency method
     |method|Ours, RelEx|Real Time Saliency|GradCAM|DeepLIFT|SmoothGrad|Integrated Gradient|Simple Gradient|
@@ -19,7 +20,7 @@ RelEx Paper: <span style="color:red">arXiv link will be here.</span>
     |state|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
     |dependency|N/A|N/A|N/A|Captum|N/A|N/A|N/A|
 #### :white_check_mark:: done, :construction:: refactoring
-### Prerequisites
+### Requirements
 Dependencies of this implementaion are the following.
 * Python == 3.6
 * PyTorch >= 1.7
@@ -41,7 +42,7 @@ Evaluating saliency via the command.
 python eval.py [(options)]
 ```
 #### options
-* robust: Flag whether select naturally trained or adversarilly trained model
+* --robust: Flag whether select naturally trained or adversarilly trained model
 
 Our method example
 ```python

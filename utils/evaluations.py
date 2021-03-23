@@ -9,13 +9,13 @@ This script is used to provide funtion to evaluate Saliency against Adversarial 
 
 class RetrievalRate:
     def __init__(self, net):
-        self.net = net
+        self.net = net.to(0)
 
     def __call__(self, orig_x, adv_x, orig_sal, adv_sal):
         exp = orig_x * orig_sal
         recov_exp = adv_x * orig_sal
         adv_exp = adv_x * adv_sal
-        recov_adv_exp = orig_sal * adv_sal
+        recov_adv_exp = orig_x * adv_sal
 
         exp_top_accu1 = self.top1_accu(orig_x, exp)
         recov_exp_top_accu1 = self.top1_accu(orig_x, recov_exp)
@@ -32,20 +32,16 @@ class RetrievalRate:
         return top_accu1_outputs
 
     def top1_accu(self, orig_x, input_x):
-        target_indices = self.net(x).max(1)[1]
+        target_indices = self.net(orig_x).max(1)[1]
         max_indices = self.net(input_x).max(1)[1]
 
-        N = float(target_indices.size(0))
+        N = float(max_indices.size(0))
         match_sum = (target_indices == max_indices).sum()
         accu = match_sum / N
         return accu.item()
 
 
 class Robustness:
-    '''
-
-    '''
-
     def __init__(self, k=1000, h=224, w=224, device=None):
         self.k = k
         self.hw = float(h * w)
@@ -85,8 +81,8 @@ class Robustness:
         orig_sal_set_rank = torch.zeros_like(orig_sal_set_flatten)
         adv_sal_set_rank = torch.zeros_like(adv_sal_set_flatten)
 
+        orig_sal_set_rank[0, orig_orders[0]] = self.rank_values
         for b_idx in range(adv_sal_set_flatten.size(0)):
-            orig_sal_set_rank[b_idx, orig_orders[b_idx]] = self.rank_values
             adv_sal_set_rank[b_idx, adv_orders[b_idx]] = self.rank_values
 
         d = orig_sal_set_rank - adv_sal_set_rank

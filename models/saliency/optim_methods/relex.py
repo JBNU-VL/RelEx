@@ -49,6 +49,9 @@ class RelEx(nn.Module):
     def _reset(self, x, target_cls=None, sec_ord=False):
         if target_cls == None:
             target_cls = self.net(x).max(1)[1].item()
+        elif isinstance(target_cls, torch.Tensor):
+            target_cls = target_cls.item()
+
         self.target_cls = target_cls
 
         self.sec_ord = sec_ord  # whether calculate second order derivative

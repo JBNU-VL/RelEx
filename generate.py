@@ -30,7 +30,7 @@ class Generator:
 
         if opts.gpu:
             device = torch.device('cuda')
-            net = DataParallel(net).to(device)
+            self.net = DataParallel(net).to(device)
 
             if not robust:
                 encoder_net = DataParallel(encoder_net).to(device)
@@ -39,7 +39,7 @@ class Generator:
 
         self.opts = opts
 
-        self.pgd_generator = ProjectedGradientDescent(net,
+        self.pgd_generator = ProjectedGradientDescent(self.net,
                                                       eps=opts.untargeted.eps,
                                                       a=opts.untargeted.a,
                                                       K=opts.untargeted.K,
@@ -76,7 +76,7 @@ class Generator:
                                                       beta_range=opts.unstructured.beta_range,
                                                       device=device)
 
-        relex_method = RelEx(net,
+        relex_method = RelEx(self.net,
                              shape=opts.x_shape,
                              batch_size=opts.relex.batch_size,
                              lr=opts.relex.lr,
@@ -87,15 +87,15 @@ class Generator:
                              lambda2=opts.relex.lambda2,
                              mode=opts.relex.mode,
                              device=device)
-        smgrad_method = SmoothGrad(net,
+        smgrad_method = SmoothGrad(self.net,
                                    shape=opts.x_shape,
                                    sample_size=opts.smoothgrad.sample_size,
                                    std_level=opts.smoothgrad.std_level,
                                    device=device)
-        intgrad_method = IntegratedGradient(net,
+        intgrad_method = IntegratedGradient(self.net,
                                             steps=opts.intgrad.steps,
                                             device=device)
-        gradcam_method = GradCAM(net,
+        gradcam_method = GradCAM(self.net,
                                  target_layers=opts.gradcam.target_layers,
                                  resize=opts.gradcam.resize)
 
@@ -114,15 +114,20 @@ class Generator:
 
     def __call__(self, x):
         # generate adversarial and saliency about orig x
+        self._reset(x)
+
         results = {}
-        adv_x_sets = self.generate_adv(x)
         orig_sal_sets = self.generate_sal(x)
+        adv_x_sets = self.generate_adv(x)
         adv_sal_sets = self.generate_adv_sal(adv_x_sets)
 
         results['adversarial'] = adv_x_sets
         results['saliency'] = orig_sal_sets
         results['adversarial_saliency'] = adv_sal_sets
         return results
+
+    def _reset(self, x):
+        self.target_cls = self.net(x).max(1)[1]
 
     def generate_adv(self, x):
         '''
@@ -187,7 +192,7 @@ class Generator:
 
         sal_sets = {}
         for sal_method in self.sal_methods:
-            sal = sal_method(x)[0]
+            sal = sal_method(x, target_cls=self.target_cls)[0]
             sal_method_name = sal_method.__class__.__name__
             sal_sets[sal_method_name] = sal.detach()
         return sal_sets
