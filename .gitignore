@@ -158,6 +158,8 @@ notebook/
 .ipynb_checkpoints/
 */.ipynb_checkpoints/*
 
+visualize.py
+
 models/saliency/optim_methods/mask.py
 models/saliency/non_optim_methods/lrp.py
 
