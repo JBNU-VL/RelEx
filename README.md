@@ -1,7 +1,7 @@
 # RelEx
 This repository is implementation of "Building Reliable Explanations of Unreliable Neural Networks: Locally Smoothing Perspective of Model Interpretation", CVPR 2021.
 
-RelEx Paper: <span style="color:red">arXiv link will be here.</span>
+arXiv link: https://arxiv.org/abs/2103.14332
 ## Authors
 * Dohun Lim
 * Hyeonseok Lee
